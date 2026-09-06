@@ -21,15 +21,17 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { Clapperboard, FolderClock, LockKeyhole, LogOut, PanelLeft, PlugZap, Sparkles } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { trpc } from "@/lib/trpc";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: Clapperboard, label: "Studio", path: "/" },
+  { icon: FolderClock, label: "Project history", path: "/" },
+  { icon: PlugZap, label: "Video providers", path: "/providers" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -46,7 +48,8 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user, logout } = useAuth();
+  const access = trpc.auth.access.useQuery(undefined, { enabled: Boolean(user) });
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -60,21 +63,40 @@ export default function DashboardLayout({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center gap-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-center">
-              Sign in to continue
-            </h1>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Continue to launch the login flow.
-            </p>
+              <div className="flex flex-col items-center gap-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_45px_rgba(205,181,255,.32)]">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Private creative suite</p>
+                  <h1 className="font-display text-4xl tracking-tight text-center">Enter FrameForge</h1>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground text-center max-w-sm">
+                  Your prompts, references, generated clips, and exports remain behind your private sign-in.
+                </p>
           </div>
           <Button
             onClick={() => startLogin()}
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in
+              Sign in privately
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (access.isLoading) return <DashboardLayoutSkeleton />;
+
+  if (!access.data?.isOwner) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="max-w-md rounded-[2rem] border border-white/10 bg-card/80 p-8 text-center shadow-2xl">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive"><LockKeyhole className="h-5 w-5" /></div>
+          <h1 className="mt-6 font-display text-4xl">Private studio</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">This workspace is restricted to its configured owner. No project or media data has been shown.</p>
+          <Button variant="outline" className="mt-6 bg-white/[.02]" onClick={logout}>Sign out</Button>
         </div>
       </div>
     );
@@ -168,8 +190,8 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold tracking-tight truncate">
-                    Navigation
+                  <span className="font-display text-xl tracking-tight truncate">
+                    FrameForge
                   </span>
                 </div>
               ) : null}
@@ -179,9 +201,9 @@ function DashboardLayoutContent({
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
-                const isActive = location === item.path;
+                const isActive = item.label === "Project history" ? false : location === item.path;
                 return (
-                  <SidebarMenuItem key={item.path}>
+                  <SidebarMenuItem key={`${item.label}-${item.path}`}>
                     <SidebarMenuButton
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
@@ -255,7 +277,7 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1 p-3 sm:p-5 lg:p-7">{children}</main>
       </SidebarInset>
     </>
   );

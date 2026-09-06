@@ -1,0 +1,32 @@
+# Project TODO
+
+- [x] Restrict every project, asset, job, clip, and export operation to the authenticated owner.
+- [x] Create a persistent project data model for prompts, 9:16 settings, target duration, references, generated clips, provider jobs, timeline order, and final exports.
+- [x] Enforce a minimum requested and final duration of 61 seconds at the UI, API, and validation layers.
+- [x] Store uploaded reference media and generated artifacts in private object storage with metadata in the database.
+- [x] Add a server-only modular provider registry that discovers configured adapters without returning credentials to the browser or requiring any named vendor.
+- [x] Generate and persist a structured multi-clip plan from each creative prompt and its reference context.
+- [x] Submit provider clip jobs and display queued, running, completed, and failed lifecycle states with useful error messages.
+- [x] Build an elegant responsive studio interface for creating projects, uploading references, selecting providers, and monitoring generation.
+- [x] Build a reorderable vertical timeline with per-clip duration controls and a clear total-duration indicator.
+- [x] Implement a TikTok-ready 9:16 MP4 export workflow that only marks exports complete when duration is at least 61 seconds.
+- [x] Preserve searchable project history and reusable prompts, references, clips, job state, and exports.
+- [x] Add backend unit tests for owner isolation, validation, provider security, planning, job transitions, and export eligibility.
+- [x] Run type checks, automated tests, build verification, and desktop/mobile visual review.
+- [x] Document provider setup requirements and honest runtime limitations for long-running generation and rendering.
+- [x] Exclude Google models and Google APIs from every video-rendering option, default, capability flag, and submission path.
+- [x] Make secure compatible non-Google image-to-video adapters pluggable without assigning a permanent default.
+- [x] Define a vendor-neutral video request containing prompt, reference images, duration, 9:16 aspect ratio, optional seed, negative prompt, and extensible settings.
+- [x] Define a common video-provider interface for availability checks, submission, status refresh, result retrieval, error classification, and capability metadata.
+- [x] Persist an owner-configurable ordered provider chain with enabled, primary, fallback, and manual-per-project selection behavior.
+- [x] Keep provider-specific credentials exclusively in server-side environment secrets and expose only redacted connection status to the browser.
+- [x] Add automatic fallback for unavailable, quota-limited, out-of-credit, retryable, and provider-failure conditions while preserving an attempt audit trail.
+- [x] Ensure adapters can be added, removed, reordered, or replaced without changing project, clip, job, timeline, or export schemas.
+- [x] Do not select, hardcode, or silently fall back to any mandatory video vendor in the initial provider-layer implementation.
+- [x] Persist a clip artifact immediately when a provider's initial submission response is already completed with an output URL.
+- [x] Persist every generated clip and final export artifact before marking its job completed.
+- [x] Fix the duplicate sidebar menu key warning found during browser runtime verification.
+- [x] Visually verify the authenticated project-studio route at desktop and mobile sizes, including reference, timeline, jobs, and export sections.
+- [x] Confirm the populated project workflow layout without leaving temporary QA data in the owner's project archive.
+- [x] Remove the temporary in-memory populated preview state after visual verification.
+- [x] Refine the project studio to use its three-column production layout at standard desktop widths.
