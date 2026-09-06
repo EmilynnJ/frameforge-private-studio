@@ -8,12 +8,21 @@ import {
   verifyAccessSessionToken,
 } from "./accessKeyAuth";
 
-beforeEach(() => {
-  process.env.STUDIO_ACCESS_KEY = "frameforge-test-key";
-  process.env.JWT_SECRET = "frameforge-test-jwt-secret";
+const deploymentAccessKey = process.env.STUDIO_ACCESS_KEY;
+
+describe("configured private access key", () => {
+  it("accepts the server-configured deployment key without exposing its value", () => {
+    expect(deploymentAccessKey).toBeTruthy();
+    expect(verifyAccessKey(deploymentAccessKey!)).toBe(true);
+  });
 });
 
-describe("private access-key authentication", () => {
+describe("private access-key session mechanics", () => {
+  beforeEach(() => {
+    process.env.STUDIO_ACCESS_KEY = "frameforge-test-key";
+    process.env.JWT_SECRET = "frameforge-test-jwt-secret";
+  });
+
   it("accepts the configured key and rejects a wrong key", () => {
     expect(verifyAccessKey("frameforge-test-key")).toBe(true);
     expect(verifyAccessKey("wrong-key")).toBe(false);
