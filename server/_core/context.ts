@@ -3,7 +3,7 @@ import type { User } from "../../drizzle/schema";
 import { getUserByOpenId, upsertUser } from "../db";
 import { hasAccessSession } from "../accessKeyAuth";
 
-const ACCESS_KEY_OWNER_OPEN_ID = "frameforge-access-key-owner";
+const ACCESS_KEY_OWNER_HANDLE = "frameforge-access-key-owner";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -22,15 +22,15 @@ export async function createContext(
   const accessKeyAuthenticated = hasAccessSession(opts.req);
   let user: User | null = null;
   if (accessKeyAuthenticated) {
-    user = await getUserByOpenId(ACCESS_KEY_OWNER_OPEN_ID) ?? null;
+    user = await getUserByOpenId(ACCESS_KEY_OWNER_HANDLE) ?? null;
     if (!user) {
       await upsertUser({
-        openId: ACCESS_KEY_OWNER_OPEN_ID,
+        openId: ACCESS_KEY_OWNER_HANDLE,
         name: "FrameForge Owner",
         loginMethod: "access-key",
         role: "admin",
       });
-      user = await getUserByOpenId(ACCESS_KEY_OWNER_OPEN_ID) ?? null;
+      user = await getUserByOpenId(ACCESS_KEY_OWNER_HANDLE) ?? null;
     }
   }
 
