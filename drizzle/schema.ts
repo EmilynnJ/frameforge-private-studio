@@ -89,6 +89,35 @@ export const providerPreferences = mysqlTable(
   ],
 );
 
+export const providerConnections = mysqlTable(
+  "providerConnections",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    ownerId: int("ownerId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    providerKey: varchar("providerKey", { length: 96 }).notNull(),
+    label: varchar("label", { length: 160 }).notNull(),
+    adapterType: varchar("adapterType", { length: 96 }).default("http-json").notNull(),
+    submitUrl: text("submitUrl").notNull(),
+    statusUrlTemplate: text("statusUrlTemplate"),
+    apiKeyEncrypted: text("apiKeyEncrypted").notNull(),
+    apiKeyHeader: varchar("apiKeyHeader", { length: 120 }).default("Authorization").notNull(),
+    apiKeyPrefix: varchar("apiKeyPrefix", { length: 80 }).default("Bearer ").notNull(),
+    model: varchar("model", { length: 255 }),
+    modelField: varchar("modelField", { length: 160 }),
+    headersJson: text("headersJson"),
+    requestMapJson: text("requestMapJson").notNull(),
+    responseMapJson: text("responseMapJson").notNull(),
+    statusMapJson: text("statusMapJson"),
+    capabilitiesJson: text("capabilitiesJson").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("providerConnections_owner_provider_uq").on(table.ownerId, table.providerKey),
+    index("providerConnections_owner_updated_idx").on(table.ownerId, table.updatedAt),
+  ],
+);
+
 export const generationJobs = mysqlTable(
   "generationJobs",
   {
@@ -168,6 +197,7 @@ export type InsertUser = typeof users.$inferInsert;
 export type VideoProject = typeof videoProjects.$inferSelect;
 export type ProjectAsset = typeof projectAssets.$inferSelect;
 export type ProviderPreference = typeof providerPreferences.$inferSelect;
+export type ProviderConnection = typeof providerConnections.$inferSelect;
 export type GenerationJob = typeof generationJobs.$inferSelect;
 export type VideoClip = typeof videoClips.$inferSelect;
 export type VideoExport = typeof videoExports.$inferSelect;

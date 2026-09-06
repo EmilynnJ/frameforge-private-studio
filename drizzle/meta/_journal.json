@@ -15,6 +15,13 @@
       "when": 1788655125758,
       "tag": "0001_mixed_mother_askani",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1788657198631,
+      "tag": "0002_productive_boom_boom",
+      "breakpoints": true
     }
   ]
 }

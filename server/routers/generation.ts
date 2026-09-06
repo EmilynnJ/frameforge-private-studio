@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "../db";
 import { ownerProcedure, router } from "../_core/trpc";
-import { loadVideoProvidersFromServerConfig } from "../providers/config";
+import { loadVideoProviders } from "../providers/config";
 import { submitWithFallback } from "../providers/orchestrator";
 import type { ProviderAttemptEvent, ProviderJob, VideoGenerationRequest } from "../providers/types";
 import { normalizedProviderError } from "../providers/errors";
@@ -11,7 +11,7 @@ import { storageGetSignedUrl, storagePut } from "../storage";
 async function submitClip(ownerId: number, clipId: number, excludedProviderIds: string[] = []) {
   const context = await db.getClipContext(ownerId, clipId);
   if (!context?.project) throw new TRPCError({ code: "NOT_FOUND", message: "Clip not found." });
-  const registry = loadVideoProvidersFromServerConfig();
+  const registry = await loadVideoProviders(ownerId);
   const preferences = (await db.listProviderPreferences(ownerId)).filter(item => item.enabled);
   const automaticProviderIds = preferences.length ? preferences.map(item => item.providerKey) : registry.ids();
   const providerIds = (context.project.videoProviderMode === "manual"
@@ -127,7 +127,7 @@ export const generationRouter = router({
   refreshJob: ownerProcedure.input(z.object({ jobId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
     const job = await db.getGenerationJob(ctx.user.id, input.jobId);
     if (!job?.providerKey || !job.externalJobId) throw new TRPCError({ code: "NOT_FOUND", message: "Provider job not found." });
-    const adapter = loadVideoProvidersFromServerConfig().get(job.providerKey);
+    const adapter = (await loadVideoProviders(ctx.user.id)).get(job.providerKey);
     if (!adapter) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That provider adapter is no longer configured." });
     try {
       const refreshed = await adapter.refresh({

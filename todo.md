@@ -19,7 +19,7 @@
 - [x] Define a vendor-neutral video request containing prompt, reference images, duration, 9:16 aspect ratio, optional seed, negative prompt, and extensible settings.
 - [x] Define a common video-provider interface for availability checks, submission, status refresh, result retrieval, error classification, and capability metadata.
 - [x] Persist an owner-configurable ordered provider chain with enabled, primary, fallback, and manual-per-project selection behavior.
-- [x] Keep provider-specific credentials exclusively in server-side environment secrets and expose only redacted connection status to the browser.
+- [x] Keep provider-specific credentials exclusively in encrypted server-side storage and expose only redacted connection status to the browser.
 - [x] Add automatic fallback for unavailable, quota-limited, out-of-credit, retryable, and provider-failure conditions while preserving an attempt audit trail.
 - [x] Ensure adapters can be added, removed, reordered, or replaced without changing project, clip, job, timeline, or export schemas.
 - [x] Do not select, hardcode, or silently fall back to any mandatory video vendor in the initial provider-layer implementation.
@@ -30,3 +30,14 @@
 - [x] Confirm the populated project workflow layout without leaving temporary QA data in the owner's project archive.
 - [x] Remove the temporary in-memory populated preview state after visual verification.
 - [x] Refine the project studio to use its three-column production layout at standard desktop widths.
+- [x] Add an owner-only in-app form for provider name, model ID, submission URL, status URL, API-key header/prefix, and API key.
+- [x] Encrypt provider API keys before database storage and never return, log, or redisplay credential values to the browser.
+- [x] Persist provider-specific request mappings, response mappings, status mappings, and capability settings so adapters remain vendor-neutral.
+- [x] Load database-configured providers dynamically into the video registry without requiring server environment edits or application rebuilds.
+- [x] Let the owner edit provider metadata, replace a credential, remove a provider, enable or disable it, and reorder primary/fallback priority from the provider screen.
+- [x] Add backend tests covering credential encryption, redacted provider responses, owner-only connection management, and database-backed registry behavior.
+- [x] Verify the corrected provider screen at desktop and mobile sizes and save a new checkpoint.
+- [x] Add multi-photo reference selection and clear thumbnail previews directly in the New Production form before project creation.
+- [x] Upload selected references immediately after creating the project, surface per-file failures, and navigate only after the transfer attempt finishes.
+- [x] Replace the subtle project reference control with a prominent labeled drag-and-drop or tap-to-upload area that is obvious on mobile.
+- [x] Verify supported formats, 8 MB limits, private storage behavior, and reference visibility in both creation and project workflows.

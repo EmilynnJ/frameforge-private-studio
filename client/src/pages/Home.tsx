@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ArrowUpRight, Clock3, Film, Loader2, LockKeyhole, Search, Sparkles, WandSparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowUpRight, Clock3, Film, ImagePlus, Loader2, LockKeyhole, Search, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -23,6 +23,8 @@ const statusTone: Record<string, string> = {
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const referenceInput = useRef<HTMLInputElement>(null);
+  const previewUrls = useRef<string[]>([]);
   const projects = trpc.studio.list.useQuery();
   const providers = trpc.providers.list.useQuery();
   const [name, setName] = useState("");
@@ -31,23 +33,65 @@ export default function Home() {
   const [providerMode, setProviderMode] = useState<"automatic" | "manual">("automatic");
   const [selectedProvider, setSelectedProvider] = useState("");
   const [historySearch, setHistorySearch] = useState("");
+  const [references, setReferences] = useState<Array<{ file: File; preview: string }>>([]);
   const filteredProjects = useMemo(() => {
     const query = historySearch.trim().toLowerCase();
     if (!query) return projects.data ?? [];
     return (projects.data ?? []).filter(project => `${project.name} ${project.prompt}`.toLowerCase().includes(query));
   }, [historySearch, projects.data]);
-  const create = trpc.studio.create.useMutation({
-    onSuccess: project => project && navigate(`/projects/${project.id}`),
-    onError: error => toast.error(error.message),
+  const create = trpc.studio.create.useMutation();
+  const uploadReference = trpc.studio.uploadReference.useMutation();
+  useEffect(() => () => previewUrls.current.forEach(url => URL.revokeObjectURL(url)), []);
+
+  const selectReferences = (files: FileList | File[]) => {
+    const accepted: Array<{ file: File; preview: string }> = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) { toast.error(`${file.name} must be a JPG, PNG, or WebP image.`); continue; }
+      if (file.size > 8_000_000) { toast.error(`${file.name} is larger than 8 MB.`); continue; }
+      const preview = URL.createObjectURL(file);
+      previewUrls.current.push(preview);
+      accepted.push({ file, preview });
+    }
+    setReferences(current => [...current, ...accepted].slice(0, 12));
+  };
+
+  const fileToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 
-  const submit = () => create.mutate({
-    name: name.trim() || "Untitled vertical story",
-    prompt,
-    targetDurationSeconds: Math.max(61, duration),
-    videoProviderMode: providerMode,
-    selectedVideoProviderKey: providerMode === "manual" ? selectedProvider : undefined,
-  });
+  const submit = async () => {
+    try {
+      const project = await create.mutateAsync({
+        name: name.trim() || "Untitled vertical story",
+        prompt,
+        targetDurationSeconds: Math.max(61, duration),
+        videoProviderMode: providerMode,
+        selectedVideoProviderKey: providerMode === "manual" ? selectedProvider : undefined,
+      });
+      if (!project) throw new Error("Project could not be created.");
+      const failures: string[] = [];
+      for (const reference of references) {
+        try {
+          await uploadReference.mutateAsync({
+            projectId: project.id,
+            fileName: reference.file.name,
+            mimeType: reference.file.type as "image/jpeg" | "image/png" | "image/webp",
+            base64: await fileToBase64(reference.file),
+          });
+        } catch (error) {
+          failures.push(`${reference.file.name}: ${error instanceof Error ? error.message : "upload failed"}`);
+        }
+      }
+      if (failures.length) toast.warning(`${references.length - failures.length} uploaded. Failed: ${failures.slice(0, 3).join(" · ")}${failures.length > 3 ? ` · +${failures.length - 3} more` : ""}`, { duration: 9000 });
+      else if (references.length) toast.success(`${references.length} reference photo${references.length === 1 ? "" : "s"} uploaded privately.`);
+      navigate(`/projects/${project.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Project creation failed.");
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -97,6 +141,16 @@ export default function Home() {
                   <div className="flex items-center justify-between"><Label htmlFor="prompt">Creative direction</Label><span className="text-xs text-muted-foreground">{prompt.length}/12,000</span></div>
                   <Textarea id="prompt" value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Describe the subject, atmosphere, camera language, movement, visual continuity, and ending..." className="min-h-40 resize-none" />
                 </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between"><Label>Photo references</Label><span className="text-xs text-muted-foreground">{references.length}/12 selected</span></div>
+                  <button type="button" onClick={() => referenceInput.current?.click()} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); selectReferences(event.dataTransfer.files); }} className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-primary/30 bg-primary/[.035] px-5 py-7 text-center hover:border-primary/60 hover:bg-primary/[.06]">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary"><ImagePlus className="h-5 w-5" /></div>
+                    <p className="mt-3 text-sm font-semibold">Add reference photos</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">Tap to choose or drop JPG, PNG, or WebP files · 8 MB each</p>
+                  </button>
+                  <input ref={referenceInput} type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => { if (event.target.files) selectReferences(event.target.files); event.target.value = ""; }} />
+                  {references.length > 0 && <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">{references.map((reference, index) => <div key={`${reference.file.name}-${reference.file.lastModified}-${index}`} className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-white/10 bg-black/30"><img src={reference.preview} alt={reference.file.name} className="h-full w-full object-cover" /><button type="button" aria-label={`Remove ${reference.file.name}`} onClick={() => { URL.revokeObjectURL(reference.preview); setReferences(current => current.filter((_, itemIndex) => itemIndex !== index)); }} className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white shadow"><Trash2 className="h-3.5 w-3.5" /></button><div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-5 text-[9px] text-white/80">{reference.file.name}</div></div>)}</div>}
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="duration">Target duration</Label>
@@ -113,8 +167,8 @@ export default function Home() {
                 {providerMode === "manual" && (
                   <div className="space-y-2"><Label>Video provider</Label><Select value={selectedProvider} onValueChange={setSelectedProvider}><SelectTrigger><SelectValue placeholder="Choose a configured renderer" /></SelectTrigger><SelectContent>{providers.data?.map(provider => <SelectItem key={provider.id} value={provider.id}>{provider.label}</SelectItem>)}</SelectContent></Select></div>
                 )}
-                <Button size="lg" className="w-full" disabled={prompt.trim().length < 12 || create.isPending || (providerMode === "manual" && !selectedProvider)} onClick={submit}>
-                  {create.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Create private project
+                <Button size="lg" className="w-full" disabled={prompt.trim().length < 12 || create.isPending || uploadReference.isPending || (providerMode === "manual" && !selectedProvider)} onClick={submit}>
+                  {create.isPending || uploadReference.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : references.length ? <Upload className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />} {uploadReference.isPending ? "Uploading references…" : "Create private project"}
                 </Button>
               </div>
             </CardContent>

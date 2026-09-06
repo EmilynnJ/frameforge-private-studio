@@ -1,22 +1,23 @@
 # Video Provider Setup
 
-FrameForge intentionally ships with **no mandatory video renderer**. The app, database, timeline, jobs, and export workflow use a common provider-neutral contract. A renderer becomes available only when its adapter configuration is supplied through the server secret named `VIDEO_PROVIDER_CONFIG_JSON`.
+FrameForge intentionally ships with **no mandatory video renderer**. The app, database, timeline, jobs, and export workflow use a common provider-neutral contract. A renderer becomes available when the owner opens **Video providers**, chooses **Add provider**, and enters its model, job endpoints, field mappings, and API key.
 
 ## Configuration Flow
 
-Provider credentials must be added through the project's secure secret settings. The browser never receives `VIDEO_PROVIDER_CONFIG_JSON`, an API key, an authorization header, or a provider response containing those values. After the secret changes, restart the development service or publish a new project version so the server registry reloads its adapters.
+Provider credentials are submitted through the owner-only connection form and encrypted on the server before database storage. Editing a provider returns only a `hasApiKey` indicator and a blank replacement field; the browser never receives the saved API key or encrypted value. Newly saved adapters are loaded dynamically, so adding or changing one does not require rebuilding the app. `VIDEO_PROVIDER_CONFIG_JSON` remains an optional compatibility path for server-managed adapters, but it is no longer required for normal setup.
 
 | Stage | Behavior |
 | --- | --- |
-| Server startup | The registry parses the configured adapter array. Invalid entries are logged server-side and are not exposed to the browser. |
-| Provider screen | The owner sees only the adapter label, capability metadata, enabled state, order, and redacted availability reason. |
+| Add provider | The owner enters the provider name, model ID, submission and status endpoints, credential header, API key, mappings, and capabilities. |
+| Secure storage | The API key is encrypted with an authenticated server-side cipher before persistence and is never returned by provider procedures. |
+| Provider screen | The owner sees the adapter label, model, endpoint, capability metadata, enabled state, order, and redacted readiness reason. |
 | Automatic project | Enabled providers are attempted in the saved order. Each attempt becomes a durable job record. |
 | Manual project | Only the selected adapter is used for that project. The provider chain is not consulted. |
 | Failure | Quota, credit, rate-limit, unavailable, retryable, and unknown service failures may advance to the next provider. Authentication and request-validation failures stop because another provider should not silently change an invalid request or conceal a credential problem. |
 
-## Server Secret Shape
+## Optional Server-Managed Shape
 
-The secret value is a JSON array. The following example shows the contract with placeholders only; it is not tied to a vendor or model.
+Advanced operators may still define `VIDEO_PROVIDER_CONFIG_JSON` as a JSON array. The following example shows the compatibility contract with placeholders only; it is not tied to a vendor or model. Most owners should use the in-app form instead.
 
 ```json
 [

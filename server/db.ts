@@ -4,6 +4,7 @@ import {
   generationJobs,
   InsertUser,
   projectAssets,
+  providerConnections,
   providerPreferences,
   users,
   videoClips,
@@ -204,6 +205,51 @@ export async function replaceProviderPreferences(ownerId: number, preferences: A
     if (preferences.length) await tx.insert(providerPreferences).values(preferences.map(item => ({ ...item, ownerId })));
   });
   return listProviderPreferences(ownerId);
+}
+
+export async function listProviderConnections(ownerId: number) {
+  const db = await requireDb();
+  return db.select().from(providerConnections).where(eq(providerConnections.ownerId, ownerId)).orderBy(desc(providerConnections.updatedAt));
+}
+
+export async function createProviderConnection(input: typeof providerConnections.$inferInsert) {
+  const db = await requireDb();
+  const inserted = await db.insert(providerConnections).values(input).$returningId();
+  return (await db.select().from(providerConnections).where(and(
+    eq(providerConnections.id, inserted[0]!.id),
+    eq(providerConnections.ownerId, input.ownerId),
+  )).limit(1))[0];
+}
+
+export async function updateProviderConnection(
+  ownerId: number,
+  providerKey: string,
+  values: Partial<typeof providerConnections.$inferInsert>,
+) {
+  const db = await requireDb();
+  await db.update(providerConnections).set(values).where(and(
+    eq(providerConnections.ownerId, ownerId),
+    eq(providerConnections.providerKey, providerKey),
+  ));
+  return (await db.select().from(providerConnections).where(and(
+    eq(providerConnections.ownerId, ownerId),
+    eq(providerConnections.providerKey, providerKey),
+  )).limit(1))[0];
+}
+
+export async function deleteProviderConnection(ownerId: number, providerKey: string) {
+  const db = await requireDb();
+  await db.transaction(async tx => {
+    await tx.delete(providerPreferences).where(and(
+      eq(providerPreferences.ownerId, ownerId),
+      eq(providerPreferences.providerKey, providerKey),
+    ));
+    await tx.delete(providerConnections).where(and(
+      eq(providerConnections.ownerId, ownerId),
+      eq(providerConnections.providerKey, providerKey),
+    ));
+  });
+  return { success: true as const };
 }
 
 export async function createGenerationJob(input: typeof generationJobs.$inferInsert) {
