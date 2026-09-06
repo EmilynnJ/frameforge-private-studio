@@ -8,7 +8,7 @@ function ownerContext(): TrpcContext {
       openId: "private-owner",
       name: "Studio Owner",
       email: "owner@example.com",
-      loginMethod: "manus",
+      loginMethod: "access-key",
       role: "admin",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -16,6 +16,7 @@ function ownerContext(): TrpcContext {
     },
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: {} as TrpcContext["res"],
+    accessKeyAuthenticated: true,
   };
 }
 
@@ -47,4 +48,3 @@ describe("studio project validation", () => {
     })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });
-

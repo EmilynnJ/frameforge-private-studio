@@ -19,14 +19,14 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Clapperboard, FolderClock, LockKeyhole, LogOut, PanelLeft, PlugZap, Sparkles } from "lucide-react";
+import { Clapperboard, FolderClock, KeyRound, LogOut, PanelLeft, PlugZap } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { trpc } from "@/lib/trpc";
+import { Input } from "./ui/input";
 
 const menuItems = [
   { icon: Clapperboard, label: "Studio", path: "/" },
@@ -48,8 +48,8 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user, logout } = useAuth();
-  const access = trpc.auth.access.useQuery(undefined, { enabled: Boolean(user) });
+  const { loading } = useAuth();
+  const access = trpc.auth.access.useQuery();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -59,47 +59,10 @@ export default function DashboardLayout({
     return <DashboardLayoutSkeleton />
   }
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-              <div className="flex flex-col items-center gap-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_45px_rgba(205,181,255,.32)]">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Private creative suite</p>
-                  <h1 className="font-display text-4xl tracking-tight text-center">Enter FrameForge</h1>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground text-center max-w-sm">
-                  Your prompts, references, generated clips, and exports remain behind your private sign-in.
-                </p>
-          </div>
-          <Button
-            onClick={() => startLogin()}
-            size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
-          >
-              Sign in privately
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   if (access.isLoading) return <DashboardLayoutSkeleton />;
 
   if (!access.data?.isOwner) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="max-w-md rounded-[2rem] border border-white/10 bg-card/80 p-8 text-center shadow-2xl">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive"><LockKeyhole className="h-5 w-5" /></div>
-          <h1 className="mt-6 font-display text-4xl">Private studio</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">This workspace is restricted to its configured owner. No project or media data has been shown.</p>
-          <Button variant="outline" className="mt-6 bg-white/[.02]" onClick={logout}>Sign out</Button>
-        </div>
-      </div>
-    );
+    return <AccessKeyScreen />;
   }
 
   return (
@@ -114,6 +77,30 @@ export default function DashboardLayout({
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
+  );
+}
+
+function AccessKeyScreen() {
+  const utils = trpc.useUtils();
+  const [accessKey, setAccessKey] = useState("");
+  const unlock = trpc.auth.unlock.useMutation({
+    onSuccess: async () => {
+      await Promise.all([utils.auth.me.invalidate(), utils.auth.access.invalidate()]);
+    },
+  });
+  return (
+    <div className="flex min-h-screen items-center justify-center p-6">
+      <form onSubmit={event => { event.preventDefault(); if (accessKey.trim()) unlock.mutate({ accessKey }); }} className="w-full max-w-md rounded-[2rem] border border-white/10 bg-card/80 p-8 text-center shadow-2xl">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary"><KeyRound className="h-5 w-5" /></div>
+        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Private creative suite</p>
+        <h1 className="mt-3 font-display text-4xl">Enter FrameForge</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">Enter your private studio key to unlock your projects, references, and exports.</p>
+        <label className="mt-7 block text-left text-sm font-medium">Studio access key</label>
+        <Input value={accessKey} onChange={event => setAccessKey(event.target.value)} type="password" autoComplete="current-password" autoFocus className="mt-2 h-11" placeholder="Enter your private key" />
+        {unlock.error && <p className="mt-3 text-left text-sm text-destructive">That key did not unlock this studio. Try again.</p>}
+        <Button type="submit" size="lg" className="mt-6 w-full" disabled={!accessKey.trim() || unlock.isPending}>{unlock.isPending ? "Unlocking…" : "Unlock studio"}</Button>
+      </form>
+    </div>
   );
 }
 
