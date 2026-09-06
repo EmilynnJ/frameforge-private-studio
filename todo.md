@@ -41,3 +41,20 @@
 - [x] Upload selected references immediately after creating the project, surface per-file failures, and navigate only after the transfer attempt finishes.
 - [x] Replace the subtle project reference control with a prominent labeled drag-and-drop or tap-to-upload area that is obvious on mobile.
 - [x] Verify supported formats, 8 MB limits, private storage behavior, and reference visibility in both creation and project workflows.
+- [ ] Replace the published Manus owner-ID gate with a private access-key login that works on the production domain.
+- [ ] Hash and verify the access key only on the server, issue a secure session cookie, and never expose the key to the browser or URLs.
+- [ ] Add production access-key login, logout, loading, invalid-key, and session-expiry UI states.
+- [ ] Preserve owner-only resource isolation after access-key authentication and prevent unauthenticated tRPC access.
+- [ ] Add Vitest coverage for the configured access key, invalid key rejection, session issuance, logout, and protected procedure access.
+- [ ] Run production build and published-domain validation, then save a new checkpoint.
+- [ ] Remove the published Manus-owner-ID mismatch block from normal studio access.
+- [ ] Implement private access-key verification using the configured server secret and issue a secure access session cookie.
+- [ ] Add access-key login, invalid-key, session-loading, and logout UI states for the published domain.
+- [ ] Preserve owner-only resource authorization through the access-key session and reject unauthenticated tRPC calls.
+- [ ] Add authentication tests for valid keys, invalid keys, session cookies, logout, and protected procedures.
+- [ ] Run production checks and verify the published domain no longer blocks the configured owner behind the Manus identity mismatch.
+- [ ] Save a new live checkpoint after authentication is corrected.
+- [ ] Create and push a private GitHub repository named frameforge-private-studio without secrets, generated media, or database credentials.
+- [ ] Verify the pushed repository contents and provide its URL.
+- [ ] Push the current project as-is to a new private GitHub repository immediately, without implementing the pending access-key change first.
+- [ ] Verify the new GitHub remote and repository URL after the push.
