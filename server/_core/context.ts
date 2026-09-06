@@ -22,16 +22,15 @@ export async function createContext(
   const accessKeyAuthenticated = hasAccessSession(opts.req);
   let user: User | null = null;
   if (accessKeyAuthenticated) {
-    const persistedOwnerOpenId = process.env.OWNER_OPEN_ID || ACCESS_KEY_OWNER_OPEN_ID;
-    user = await getUserByOpenId(persistedOwnerOpenId) ?? null;
+    user = await getUserByOpenId(ACCESS_KEY_OWNER_OPEN_ID) ?? null;
     if (!user) {
       await upsertUser({
-        openId: persistedOwnerOpenId,
+        openId: ACCESS_KEY_OWNER_OPEN_ID,
         name: "FrameForge Owner",
         loginMethod: "access-key",
         role: "admin",
       });
-      user = await getUserByOpenId(persistedOwnerOpenId) ?? null;
+      user = await getUserByOpenId(ACCESS_KEY_OWNER_OPEN_ID) ?? null;
     }
   }
 

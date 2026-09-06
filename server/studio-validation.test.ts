@@ -23,7 +23,6 @@ function ownerContext(): TrpcContext {
 describe("studio project validation", () => {
   beforeEach(() => {
     vi.resetModules();
-    process.env.OWNER_OPEN_ID = "private-owner";
   });
 
   it("rejects target durations below 61 seconds before database work", async () => {
