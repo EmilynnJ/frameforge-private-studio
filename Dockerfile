@@ -11,5 +11,4 @@ RUN npm install -g corepack@latest \
     && corepack pnpm run build
 
 ENV NODE_ENV=production
-CMD ["node", "dist/index.js"]
-
+CMD ["sh", "-c", "corepack pnpm drizzle-kit migrate && node dist/index.js"]

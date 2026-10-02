@@ -3,7 +3,7 @@ import { ENV } from "../_core/env";
 
 function encryptionKey() {
   if (!ENV.cookieSecret) throw new Error("The server credential-encryption key is unavailable.");
-  return createHash("sha256").update(`frameforge-provider-vault:${ENV.cookieSecret}`).digest();
+  return createHash("sha256").update(`studiocut-provider-vault:${ENV.cookieSecret}`).digest();
 }
 
 export function encryptProviderCredential(value: string) {

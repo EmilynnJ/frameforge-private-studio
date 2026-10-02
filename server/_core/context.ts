@@ -3,7 +3,7 @@ import type { User } from "../../drizzle/schema";
 import { getUserByOpenId, upsertUser } from "../db";
 import { hasAccessSession } from "../accessKeyAuth";
 
-const ACCESS_KEY_OWNER_HANDLE = "frameforge-access-key-owner";
+const ACCESS_KEY_OWNER_HANDLE = "studiocut-access-key-owner";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -26,7 +26,7 @@ export async function createContext(
     if (!user) {
       await upsertUser({
         openId: ACCESS_KEY_OWNER_HANDLE,
-        name: "FrameForge Owner",
+        name: "StudioCut Owner",
         loginMethod: "access-key",
         role: "admin",
       });

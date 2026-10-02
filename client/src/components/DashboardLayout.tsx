@@ -93,7 +93,7 @@ function AccessKeyScreen() {
       <form onSubmit={event => { event.preventDefault(); if (accessKey.trim()) unlock.mutate({ accessKey }); }} className="w-full max-w-md rounded-[2rem] border border-white/10 bg-card/80 p-8 text-center shadow-2xl">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary"><KeyRound className="h-5 w-5" /></div>
         <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Private creative suite</p>
-        <h1 className="mt-3 font-display text-4xl">Enter FrameForge</h1>
+        <h1 className="mt-3 font-display text-4xl">Enter StudioCut</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">Enter your private studio key to unlock your projects, references, and exports.</p>
         <label className="mt-7 block text-left text-sm font-medium">Studio access key</label>
         <Input value={accessKey} onChange={event => setAccessKey(event.target.value)} type="password" autoComplete="current-password" autoFocus className="mt-2 h-11" placeholder="Enter your private key" />
@@ -178,7 +178,7 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-display text-xl tracking-tight truncate">
-                    FrameForge
+                    StudioCut
                   </span>
                 </div>
               ) : null}

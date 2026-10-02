@@ -7,12 +7,19 @@ import { createClipPlan } from "../planning/clipPlanner";
 
 const MIN_DURATION = 61;
 
+async function withSignedAssetUrls<T extends { storageKey: string }>(assets: T[]) {
+  return Promise.all(assets.map(async asset => ({
+    ...asset,
+    url: await storageGetSignedUrl(asset.storageKey),
+  })));
+}
+
 export const studioRouter = router({
   list: ownerProcedure.query(({ ctx }) => db.listVideoProjects(ctx.user.id)),
   get: ownerProcedure.input(z.object({ projectId: z.number().int().positive() })).query(async ({ ctx, input }) => {
     const bundle = await db.getProjectBundle(ctx.user.id, input.projectId);
     if (!bundle) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found." });
-    return bundle;
+    return { ...bundle, assets: await withSignedAssetUrls(bundle.assets) };
   }),
   create: ownerProcedure
     .input(z.object({
@@ -60,7 +67,7 @@ export const studioRouter = router({
       mimeType: input.mimeType,
       sizeBytes: bytes.length,
       storageKey: stored.key,
-      url: stored.url,
+      url: stored.key,
     });
   }),
   plan: ownerProcedure.input(z.object({ projectId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
@@ -72,7 +79,7 @@ export const studioRouter = router({
       projectId: input.projectId,
       kind: "planning",
       providerKey: "studio-planner",
-      adapterType: "built-in-llm",
+      adapterType: "openai-compatible",
       status: "running",
       progress: 10,
       requestJson: JSON.stringify({ targetDurationSeconds: bundle.project.targetDurationSeconds }),
@@ -82,6 +89,7 @@ export const studioRouter = router({
         bundle.assets.filter(asset => asset.kind === "reference_image").map(asset => storageGetSignedUrl(asset.storageKey)),
       );
       const plan = await createClipPlan({
+        ownerId: ctx.user.id,
         prompt: bundle.project.prompt,
         targetDurationSeconds: bundle.project.targetDurationSeconds,
         referenceUrls,
@@ -94,6 +102,7 @@ export const studioRouter = router({
         durationSeconds: clip.durationSeconds,
         seed: clip.seed,
       })));
+      await db.updateProject(ctx.user.id, input.projectId, { planningProviderKey: plan.providerKey });
       await db.updateGenerationJob(ctx.user.id, planningJobId, {
         status: "completed",
         progress: 100,
@@ -146,7 +155,7 @@ export const studioRouter = router({
         mimeType: asset.mimeType,
         sizeBytes: asset.sizeBytes,
         storageKey: asset.storageKey,
-        url: asset.url,
+        url: asset.storageKey,
         width: asset.width,
         height: asset.height,
       });

@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request } from "express";
 import { getSessionCookieOptions } from "./_core/cookies";
 
-export const ACCESS_SESSION_COOKIE = "frameforge_access";
+export const ACCESS_SESSION_COOKIE = "studiocut_access";
 const ACCESS_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 function configuredAccessKey() {

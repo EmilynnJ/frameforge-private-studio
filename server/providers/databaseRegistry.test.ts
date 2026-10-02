@@ -10,12 +10,11 @@ vi.mock("../db", () => ({
 describe("database-backed video provider registry", () => {
   beforeEach(() => {
     mocked.connections.length = 0;
-    delete process.env.VIDEO_PROVIDER_CONFIG_JSON;
   });
 
-  it("loads an owner connection into a fresh runtime registry without exposing its key", async () => {
+  it("loads a saved video connection without exposing its key", async () => {
     mocked.connections.push({
-      id: 1, ownerId: 7, providerKey: "saved-renderer", label: "Saved Renderer", adapterType: "http-json",
+      id: 1, ownerId: 7, providerKey: "saved-renderer", kind: "video", preset: "custom-json", label: "Saved Renderer", adapterType: "http-json",
       submitUrl: "https://provider.example/jobs", statusUrlTemplate: "https://provider.example/jobs/{id}",
       apiKeyEncrypted: encryptProviderCredential("private-provider-key"), apiKeyHeader: "Authorization", apiKeyPrefix: "Bearer ",
       model: "video-model", modelField: "model", headersJson: "{}",

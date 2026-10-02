@@ -2,7 +2,7 @@ import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useMemo } from "react";
 
-/** Access state comes only from the FrameForge access-key session cookie. */
+/** Access state comes only from the StudioCut access-key session cookie. */
 export function useAuth() {
   const utils = trpc.useUtils();
   const meQuery = trpc.auth.me.useQuery(undefined, {

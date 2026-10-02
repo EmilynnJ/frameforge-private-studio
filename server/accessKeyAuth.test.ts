@@ -19,12 +19,12 @@ describe("configured private access key", () => {
 
 describe("private access-key session mechanics", () => {
   beforeEach(() => {
-    process.env.STUDIO_ACCESS_KEY = "frameforge-test-key";
-    process.env.JWT_SECRET = "frameforge-test-jwt-secret";
+    process.env.STUDIO_ACCESS_KEY = "studiocut-test-key";
+    process.env.JWT_SECRET = "studiocut-test-jwt-secret";
   });
 
   it("accepts the configured key and rejects a wrong key", () => {
-    expect(verifyAccessKey("frameforge-test-key")).toBe(true);
+    expect(verifyAccessKey("studiocut-test-key")).toBe(true);
     expect(verifyAccessKey("wrong-key")).toBe(false);
   });
 

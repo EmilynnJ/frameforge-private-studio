@@ -1,5 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import {
   generationJobs,
   InsertUser,
@@ -13,48 +14,40 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: Pool | undefined;
+let _db: ReturnType<typeof drizzle> | undefined;
 
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
+  if (!_db && ENV.databaseUrl) {
+    _pool = new Pool({ connectionString: ENV.databaseUrl });
+    _db = drizzle(_pool);
   }
   return _db;
 }
 
 async function requireDb() {
   const db = await getDb();
-  if (!db) throw new Error("Database is not available");
+  if (!db) throw new Error("Database is not available. Set DATABASE_URL.");
   return db;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await requireDb();
-  const values: InsertUser = { openId: user.openId };
-  const updateSet: Record<string, unknown> = {};
+  const now = new Date();
+  const values: InsertUser = { openId: user.openId, lastSignedIn: user.lastSignedIn ?? now };
+  const updateSet: Partial<InsertUser> = { updatedAt: now, lastSignedIn: values.lastSignedIn };
   for (const field of ["name", "email", "loginMethod"] as const) {
     if (user[field] !== undefined) {
       values[field] = user[field] ?? null;
       updateSet[field] = user[field] ?? null;
     }
   }
-  if (user.lastSignedIn !== undefined) {
-    values.lastSignedIn = user.lastSignedIn;
-    updateSet.lastSignedIn = user.lastSignedIn;
-  }
   if (user.role !== undefined) {
     values.role = user.role;
     updateSet.role = user.role;
   }
-  values.lastSignedIn ??= new Date();
-  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -71,7 +64,7 @@ export async function createVideoProject(input: {
   selectedVideoProviderKey?: string;
 }) {
   const db = await requireDb();
-  const inserted = await db.insert(videoProjects).values(input).$returningId();
+  const inserted = await db.insert(videoProjects).values(input).returning({ id: videoProjects.id });
   return getVideoProject(input.ownerId, inserted[0]!.id);
 }
 
@@ -82,13 +75,7 @@ export async function listVideoProjects(ownerId: number) {
 
 export async function getVideoProject(ownerId: number, projectId: number) {
   const db = await requireDb();
-  return (
-    await db
-      .select()
-      .from(videoProjects)
-      .where(and(eq(videoProjects.id, projectId), eq(videoProjects.ownerId, ownerId)))
-      .limit(1)
-  )[0];
+  return (await db.select().from(videoProjects).where(and(eq(videoProjects.id, projectId), eq(videoProjects.ownerId, ownerId))).limit(1))[0];
 }
 
 export async function getProjectBundle(ownerId: number, projectId: number) {
@@ -108,21 +95,20 @@ export async function updateProject(ownerId: number, projectId: number, values: 
   name: string;
   prompt: string;
   targetDurationSeconds: number;
+  planningProviderKey: string | null;
   status: "draft" | "planning" | "ready" | "generating" | "assembling" | "completed" | "failed";
   videoProviderMode: "automatic" | "manual";
   selectedVideoProviderKey: string | null;
 }>) {
   const db = await requireDb();
-  await db.update(videoProjects).set(values).where(and(eq(videoProjects.id, projectId), eq(videoProjects.ownerId, ownerId)));
+  await db.update(videoProjects).set({ ...values, updatedAt: new Date() }).where(and(eq(videoProjects.id, projectId), eq(videoProjects.ownerId, ownerId)));
   return getVideoProject(ownerId, projectId);
 }
 
 export async function addProjectAsset(input: typeof projectAssets.$inferInsert) {
   const db = await requireDb();
-  const inserted = await db.insert(projectAssets).values(input).$returningId();
-  return (
-    await db.select().from(projectAssets).where(and(eq(projectAssets.id, inserted[0]!.id), eq(projectAssets.ownerId, input.ownerId))).limit(1)
-  )[0];
+  const inserted = await db.insert(projectAssets).values(input).returning({ id: projectAssets.id });
+  return (await db.select().from(projectAssets).where(and(eq(projectAssets.id, inserted[0]!.id), eq(projectAssets.ownerId, input.ownerId))).limit(1))[0];
 }
 
 export async function replaceProjectClips(ownerId: number, projectId: number, clips: Array<{
@@ -138,7 +124,7 @@ export async function replaceProjectClips(ownerId: number, projectId: number, cl
   await db.transaction(async tx => {
     await tx.delete(videoClips).where(and(eq(videoClips.projectId, projectId), eq(videoClips.ownerId, ownerId)));
     if (clips.length) await tx.insert(videoClips).values(clips.map(clip => ({ ...clip, ownerId, projectId })));
-    await tx.update(videoProjects).set({ status: "ready" }).where(and(eq(videoProjects.id, projectId), eq(videoProjects.ownerId, ownerId)));
+    await tx.update(videoProjects).set({ status: "ready", updatedAt: new Date() }).where(and(eq(videoProjects.id, projectId), eq(videoProjects.ownerId, ownerId)));
   });
   return db.select().from(videoClips).where(and(eq(videoClips.projectId, projectId), eq(videoClips.ownerId, ownerId))).orderBy(asc(videoClips.sequence));
 }
@@ -152,30 +138,18 @@ export async function updateClip(ownerId: number, clipId: number, values: Partia
   status: "planned" | "queued" | "running" | "completed" | "failed";
 }>) {
   const db = await requireDb();
-  await db.update(videoClips).set(values).where(and(eq(videoClips.id, clipId), eq(videoClips.ownerId, ownerId)));
+  await db.update(videoClips).set({ ...values, updatedAt: new Date() }).where(and(eq(videoClips.id, clipId), eq(videoClips.ownerId, ownerId)));
   return (await db.select().from(videoClips).where(and(eq(videoClips.id, clipId), eq(videoClips.ownerId, ownerId))).limit(1))[0];
 }
 
-export async function updateProjectTimeline(
-  ownerId: number,
-  projectId: number,
-  clips: Array<{ id: number; sequence: number; durationSeconds: number }>,
-) {
+export async function updateProjectTimeline(ownerId: number, projectId: number, clips: Array<{ id: number; sequence: number; durationSeconds: number }>) {
   const db = await requireDb();
   await db.transaction(async tx => {
     for (const clip of clips) {
-      await tx.update(videoClips).set({ sequence: -clip.sequence }).where(and(
-        eq(videoClips.id, clip.id),
-        eq(videoClips.projectId, projectId),
-        eq(videoClips.ownerId, ownerId),
-      ));
+      await tx.update(videoClips).set({ sequence: -clip.sequence, updatedAt: new Date() }).where(and(eq(videoClips.id, clip.id), eq(videoClips.projectId, projectId), eq(videoClips.ownerId, ownerId)));
     }
     for (const clip of clips) {
-      await tx.update(videoClips).set({ sequence: clip.sequence, durationSeconds: clip.durationSeconds }).where(and(
-        eq(videoClips.id, clip.id),
-        eq(videoClips.projectId, projectId),
-        eq(videoClips.ownerId, ownerId),
-      ));
+      await tx.update(videoClips).set({ sequence: clip.sequence, durationSeconds: clip.durationSeconds, updatedAt: new Date() }).where(and(eq(videoClips.id, clip.id), eq(videoClips.projectId, projectId), eq(videoClips.ownerId, ownerId)));
     }
   });
   return db.select().from(videoClips).where(and(eq(videoClips.projectId, projectId), eq(videoClips.ownerId, ownerId))).orderBy(asc(videoClips.sequence));
@@ -209,55 +183,41 @@ export async function listProviderConnections(ownerId: number) {
   return db.select().from(providerConnections).where(eq(providerConnections.ownerId, ownerId)).orderBy(desc(providerConnections.updatedAt));
 }
 
-export async function createProviderConnection(input: typeof providerConnections.$inferInsert) {
+export async function getProviderConnectionByKind(ownerId: number, kind: "script" | "voice" | "video") {
   const db = await requireDb();
-  const inserted = await db.insert(providerConnections).values(input).$returningId();
-  return (await db.select().from(providerConnections).where(and(
-    eq(providerConnections.id, inserted[0]!.id),
-    eq(providerConnections.ownerId, input.ownerId),
-  )).limit(1))[0];
+  return (await db.select().from(providerConnections).where(and(eq(providerConnections.ownerId, ownerId), eq(providerConnections.kind, kind))).orderBy(desc(providerConnections.updatedAt)).limit(1))[0];
 }
 
-export async function updateProviderConnection(
-  ownerId: number,
-  providerKey: string,
-  values: Partial<typeof providerConnections.$inferInsert>,
-) {
+export async function createProviderConnection(input: typeof providerConnections.$inferInsert) {
   const db = await requireDb();
-  await db.update(providerConnections).set(values).where(and(
-    eq(providerConnections.ownerId, ownerId),
-    eq(providerConnections.providerKey, providerKey),
-  ));
-  return (await db.select().from(providerConnections).where(and(
-    eq(providerConnections.ownerId, ownerId),
-    eq(providerConnections.providerKey, providerKey),
-  )).limit(1))[0];
+  const inserted = await db.insert(providerConnections).values(input).returning({ id: providerConnections.id });
+  return (await db.select().from(providerConnections).where(and(eq(providerConnections.id, inserted[0]!.id), eq(providerConnections.ownerId, input.ownerId))).limit(1))[0];
+}
+
+export async function updateProviderConnection(ownerId: number, providerKey: string, values: Partial<typeof providerConnections.$inferInsert>) {
+  const db = await requireDb();
+  await db.update(providerConnections).set({ ...values, updatedAt: new Date() }).where(and(eq(providerConnections.ownerId, ownerId), eq(providerConnections.providerKey, providerKey)));
+  return (await db.select().from(providerConnections).where(and(eq(providerConnections.ownerId, ownerId), eq(providerConnections.providerKey, providerKey))).limit(1))[0];
 }
 
 export async function deleteProviderConnection(ownerId: number, providerKey: string) {
   const db = await requireDb();
   await db.transaction(async tx => {
-    await tx.delete(providerPreferences).where(and(
-      eq(providerPreferences.ownerId, ownerId),
-      eq(providerPreferences.providerKey, providerKey),
-    ));
-    await tx.delete(providerConnections).where(and(
-      eq(providerConnections.ownerId, ownerId),
-      eq(providerConnections.providerKey, providerKey),
-    ));
+    await tx.delete(providerPreferences).where(and(eq(providerPreferences.ownerId, ownerId), eq(providerPreferences.providerKey, providerKey)));
+    await tx.delete(providerConnections).where(and(eq(providerConnections.ownerId, ownerId), eq(providerConnections.providerKey, providerKey)));
   });
   return { success: true as const };
 }
 
 export async function createGenerationJob(input: typeof generationJobs.$inferInsert) {
   const db = await requireDb();
-  const inserted = await db.insert(generationJobs).values(input).$returningId();
+  const inserted = await db.insert(generationJobs).values(input).returning({ id: generationJobs.id });
   return inserted[0]!.id;
 }
 
 export async function updateGenerationJob(ownerId: number, jobId: number, values: Partial<typeof generationJobs.$inferInsert>) {
   const db = await requireDb();
-  await db.update(generationJobs).set(values).where(and(eq(generationJobs.id, jobId), eq(generationJobs.ownerId, ownerId)));
+  await db.update(generationJobs).set({ ...values, updatedAt: new Date() }).where(and(eq(generationJobs.id, jobId), eq(generationJobs.ownerId, ownerId)));
   return (await db.select().from(generationJobs).where(and(eq(generationJobs.id, jobId), eq(generationJobs.ownerId, ownerId))).limit(1))[0];
 }
 
@@ -268,7 +228,7 @@ export async function getGenerationJob(ownerId: number, jobId: number) {
 
 export async function createVideoExport(input: typeof videoExports.$inferInsert) {
   const db = await requireDb();
-  const inserted = await db.insert(videoExports).values(input).$returningId();
+  const inserted = await db.insert(videoExports).values(input).returning({ id: videoExports.id });
   return inserted[0]!.id;
 }
 

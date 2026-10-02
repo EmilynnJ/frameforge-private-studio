@@ -13,33 +13,11 @@ function parseObject<T>(value: string | null | undefined, fallback: T): T {
   }
 }
 
-function environmentConfigs() {
-  const raw = process.env.VIDEO_PROVIDER_CONFIG_JSON;
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) throw new Error("Configuration must be a JSON array.");
-    return parsed as HttpJsonProviderConfig[];
-  } catch (error) {
-    console.error("[VideoProviders] Invalid server-side provider configuration:", error);
-    return [];
-  }
-}
-
 export async function loadVideoProviders(ownerId: number) {
   const registry = new VideoProviderRegistry();
-  for (const config of environmentConfigs()) {
-    try {
-      registry.register(new HttpJsonVideoProviderAdapter(config));
-    } catch (error) {
-      console.error(`[VideoProviders] Could not register environment adapter '${config?.id ?? "unknown"}':`, error);
-    }
-  }
-
-  const connections = await db.listProviderConnections(ownerId);
+  const connections = (await db.listProviderConnections(ownerId)).filter(connection => connection.kind === "video");
   for (const connection of connections) {
     try {
-      if (registry.get(connection.providerKey)) registry.unregister(connection.providerKey);
       registry.register(new HttpJsonVideoProviderAdapter({
         id: connection.providerKey,
         label: connection.label,
@@ -70,6 +48,8 @@ export async function loadVideoProviders(ownerId: number) {
 export function redactedConnection(connection: Awaited<ReturnType<typeof db.listProviderConnections>>[number]) {
   return {
     providerKey: connection.providerKey,
+    kind: connection.kind,
+    preset: connection.preset,
     label: connection.label,
     adapterType: connection.adapterType,
     submitUrl: connection.submitUrl,

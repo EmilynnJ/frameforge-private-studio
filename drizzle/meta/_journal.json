@@ -1,26 +1,12 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1788654570031,
-      "tag": "0000_organic_marauders",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1788655125758,
-      "tag": "0001_mixed_mother_askani",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1788657198631,
-      "tag": "0002_productive_boom_boom",
+      "version": "7",
+      "when": 1790968876054,
+      "tag": "0000_fixed_namor",
       "breakpoints": true
     }
   ]

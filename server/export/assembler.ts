@@ -42,7 +42,7 @@ export async function assembleVerticalVideo(input: {
   const totalDurationSeconds = input.clips.reduce((sum, clip) => sum + clip.durationSeconds, 0);
   if (totalDurationSeconds < 61) throw new Error("The final timeline must be at least 61 seconds.");
 
-  const directory = await mkdtemp(join(tmpdir(), "frameforge-"));
+  const directory = await mkdtemp(join(tmpdir(), "studiocut-"));
   try {
     const paths = input.clips.map((_, index) => join(directory, `clip-${String(index).padStart(2, "0")}.mp4`));
     for (let index = 0; index < input.clips.length; index += 1) {
@@ -75,7 +75,7 @@ export async function assembleVerticalVideo(input: {
     const bytes = await readFile(outputPath);
     if (bytes.length > 150_000_000) throw new Error("The assembled MP4 exceeds the 150 MB export limit.");
     const stored = await storagePut(
-      `users/${input.ownerId}/projects/${input.projectId}/exports/frameforge-${Date.now()}.mp4`,
+      `users/${input.ownerId}/projects/${input.projectId}/exports/studiocut-${Date.now()}.mp4`,
       bytes,
       "video/mp4",
     );

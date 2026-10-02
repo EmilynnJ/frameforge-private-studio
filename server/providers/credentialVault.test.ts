@@ -16,6 +16,8 @@ describe("provider credential vault", () => {
       id: 1,
       ownerId: 1,
       providerKey: "renderer-a",
+      kind: "video",
+      preset: "custom-json",
       label: "Renderer A",
       adapterType: "http-json",
       submitUrl: "https://example.com/jobs",

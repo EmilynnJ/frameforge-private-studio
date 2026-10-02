@@ -46,7 +46,7 @@ export const exportsRouter = router({
         ownerId: ctx.user.id,
         projectId: input.projectId,
         kind: "final_export",
-        fileName: `frameforge-${input.projectId}-${exportId}.mp4`,
+        fileName: `studiocut-${input.projectId}-${exportId}.mp4`,
         mimeType: "video/mp4",
         sizeBytes: result.sizeBytes,
         durationSeconds: result.durationSeconds,
