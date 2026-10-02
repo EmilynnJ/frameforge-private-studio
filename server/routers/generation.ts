@@ -84,13 +84,18 @@ async function submitClip(ownerId: number, clipId: number, excludedProviderIds: 
     await db.updateGenerationJob(ownerId, finalJobId, { status: "completed", progress: 100, completedAt: new Date() });
   }
   await db.updateProject(ownerId, context.project.id, { status: "generating" });
-  return { providerId: result.provider.id, job: result.job, attempts: result.attempts };
+  const { outputHeaders: _secret, ...publicJob } = result.job;
+  return {
+    providerId: result.provider.id,
+    job: publicJob,
+    attempts: result.attempts.map(({ job, ...rest }) => (job ? { ...rest, job: { ...job, outputHeaders: undefined } } : rest)),
+  };
 }
 
 async function persistCompletedClip(ownerId: number, jobId: number, providerJob: ProviderJob) {
   const job = await db.getGenerationJob(ownerId, jobId);
   if (!job?.clipId || !providerJob.outputUrl) return;
-  const response = await fetch(providerJob.outputUrl);
+  const response = await fetch(providerJob.outputUrl, { headers: providerJob.outputHeaders });
   if (!response.ok) throw new Error(`Could not download completed clip (${response.status}).`);
   const length = Number(response.headers.get("content-length") ?? 0);
   if (length > 75_000_000) throw new Error("Completed clip exceeds the 75 MB storage limit.");
@@ -152,7 +157,8 @@ export const generationRouter = router({
         await db.updateGenerationJob(ctx.user.id, job.id, { status: "completed", progress: 100, completedAt: new Date() });
       }
       if (job.clipId) await db.updateClip(ctx.user.id, job.clipId, { status: refreshed.status === "completed" ? "completed" : refreshed.status });
-      return refreshed;
+      const { outputHeaders: _secret, ...publicJob } = refreshed;
+      return publicJob;
     } catch (error) {
       const classified = adapter.classifyError(error);
       await db.updateGenerationJob(ctx.user.id, job.id, { status: "failed", errorCode: classified.code, errorMessage: classified.message, fallbackEligible: classified.fallbackEligible, completedAt: new Date() });

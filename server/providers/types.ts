@@ -63,6 +63,8 @@ export type ProviderJob = {
   status: ProviderJobStatus;
   progress: number;
   outputUrl?: string;
+  /** Headers needed to download outputUrl (e.g. Authorization). Never persisted. */
+  outputHeaders?: Record<string, string>;
   providerPayload?: unknown;
 };
 

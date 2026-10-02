@@ -1,6 +1,7 @@
 import * as db from "../db";
 import { decryptProviderCredential } from "./credentialVault";
 import { HttpJsonVideoProviderAdapter, type HttpJsonProviderConfig } from "./httpJsonAdapter";
+import { OpenRouterVideoAdapter } from "./openRouterAdapter";
 import { VideoProviderRegistry } from "./registry";
 
 function parseObject<T>(value: string | null | undefined, fallback: T): T {
@@ -33,6 +34,19 @@ export async function loadVideoProviders(ownerId: number) {
       registry.register(new HttpJsonVideoProviderAdapter(config));
     } catch (error) {
       console.error(`[VideoProviders] Could not register environment adapter '${config?.id ?? "unknown"}':`, error);
+    }
+  }
+
+  if (process.env.OPENROUTER_API_KEY) {
+    const models = (process.env.OPENROUTER_VIDEO_MODELS ?? process.env.OPENROUTER_VIDEO_MODEL ?? "alibaba/wan-3.0")
+      .split(",").map(item => item.trim()).filter(Boolean);
+    for (const model of models) {
+      registry.register(new OpenRouterVideoAdapter({
+        id: `openrouter-${model.replace(/[^a-z0-9]+/gi, "-")}`,
+        model,
+        apiKey: process.env.OPENROUTER_API_KEY,
+        generateAudio: false,
+      }));
     }
   }
 
